@@ -1,0 +1,216 @@
+#!/bin/bash
+
+set -e
+
+function cleanup() {
+  pushd docker
+  docker-compose down --volumes
+  docker-compose rm -fs 
+  docker system prune -f
+  docker volume prune -f
+  popd
+  # Purge the TF State
+  rm -rf ./terraform/.terraform
+  rm -rf ./terraform/.terraform.lock.hcl
+  rm -rf ./terraform/terraform.tfstate
+  rm -rf ./terraform/terraform.tfstate.backup
+  exit 0
+}
+
+trap cleanup SIGKILL SIGINT
+
+function hiccup() {
+  pushd terraform
+  terraform init
+  terraform apply -auto-approve
+  popd
+}
+
+function init_compose() {
+  pushd docker/
+  docker-compose up -d --build
+
+  popd
+}
+
+function init_terraform() {
+  pushd terraform
+  terraform init
+  terraform apply -auto-approve
+  popd
+}
+
+function strip() {
+  echo "$1" | tr -d '"'
+}
+
+for arg in "$@"
+do
+    case $arg in
+        all)
+        init_compose
+
+        echo " "
+        echo 
+        echo "Watch the throne:"
+        echo
+        echo "docker logs setup -f"
+
+        shift
+        ;;
+        hiccup)
+        hiccup
+        shift
+        ;;
+        cleanup)
+        cleanup
+        shift
+        ;;
+        *)
+        echo "cmd not found: try 'all', 'login', or 'cleanup'"
+        shift
+        ;;
+    esac
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

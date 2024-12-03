@@ -1,0 +1,143 @@
+services:
+  vault:
+    container_name: "vault"
+    ports:
+      - "5696:5696"
+      - "8200:8200"
+      - "8201:8201"
+    image: "hashicorp/vault-enterprise:latest"
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - 'VAULT_ADDR=http://127.0.0.1:8200'
+      - 'VAULT_DEV_ROOT_TOKEN_ID=root'
+      - 'VAULT_SKIP_VERIFY=true'
+    volumes:
+      - type: bind
+        source: ./../vault/server/config.hcl
+        target: /opt/vault/config/vault.hcl
+      - type: bind
+        source: /tmp/vault.hclic
+        target: /opt/vault/lic/vault.hclic
+    entrypoint: [ "sh", "-c", "vault server -config /opt/vault/config/vault.hcl -log-level=trace"] 
+  proxy:
+    container_name: "proxy"
+    expose:
+      - "8200"
+    image: "hashicorp/vault-enterprise:latest"
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - 'VAULT_ADDR=http://127.0.0.1:8200'
+      - 'VAULT_DEV_ROOT_TOKEN_ID=root'
+      - 'VAULT_SKIP_VERIFY=true'
+    volumes:
+      - type: bind
+        source: ./../vault/proxy/config.hcl
+        target: /opt/vault/config/proxy.hcl
+      - type: bind
+        source: ./../sensitive
+        target: /sensitive
+      - type: bind
+        source: /tmp/vault.hclic
+        target: /opt/vault/lic/vault.hclic
+    entrypoint: [ "sh", "-c", "vault proxy -config /opt/vault/config/proxy.hcl -log-level=trace"] 
+  setup:
+    container_name: "setup"
+    expose:
+      - "8200"
+    image: "ubuntu:24.04"
+    depends_on:
+      - vault
+    network_mode: "bridge"
+    entrypoint: [ "sh", "-c", "/sensitive/helper.sh"] 
+    volumes:
+      - type: bind
+        source: ./../terraform
+        target: /terraform
+      - type: bind
+        source: ./../sensitive
+        target: /sensitive
+  agent-bar:
+    container_name: "agent-bar"
+    expose:
+      - "8200"
+    image: "hashicorp/vault:latest"
+    depends_on:
+      - setup
+    network_mode: "bridge"
+    volumes:
+      - type: bind
+        source: ./../sensitive
+        target: /sensitive
+      - type: bind
+        source: ./../nginx/html
+        target: /html
+      - type: bind
+        source: ./../vault/agent/config-bar.hcl
+        target: /opt/vault/config/agent.hcl
+    entrypoint: [ "sh", "-c", "vault agent -config /opt/vault/config/agent.hcl -log-level=trace"] 
+  agent-foo:
+    container_name: "agent-foo"
+    expose:
+      - "8200"
+    image: "hashicorp/vault:latest"
+    depends_on:
+      - setup
+    network_mode: "bridge"
+    volumes:
+      - type: bind
+        source: ./../sensitive
+        target: /sensitive
+      - type: bind
+        source: ./../nginx/html
+        target: /html
+      - type: bind
+        source: ./../vault/agent/config-foo.hcl
+        target: /opt/vault/config/agent.hcl
+    entrypoint: [ "sh", "-c", "vault agent -config /opt/vault/config/agent.hcl -log-level=trace"] 
+  agent-qux:
+    container_name: "agent-qux"
+    expose:
+      - "8200"
+    image: "hashicorp/vault:latest"
+    depends_on:
+      - setup
+    network_mode: "bridge"
+    volumes:
+      - type: bind
+        source: ./../sensitive
+        target: /sensitive
+      - type: bind
+        source: ./../nginx/html
+        target: /html
+      - type: bind
+        source: ./../vault/agent/config-qux.hcl
+        target: /opt/vault/config/agent.hcl
+    entrypoint: [ "sh", "-c", "vault agent -config /opt/vault/config/agent.hcl -log-level=trace"] 
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    volumes:
+      - type: bind
+        source: ./../nginx/nginx.conf
+        target: /usr/share/nginx/nginx.conf
+      - type: bind
+        source: ./../sensitive
+        target: /sensitive
+      - type: bind
+        source: ./../html/foo.html
+        target: /usr/share/nginx/html/foo.html
+      - type: bind
+        source: ./../html/bar.html
+        target: /usr/share/nginx/html/bar.html
+      - type: bind
+        source: ./../html/qux.html
+        target: /usr/share/nginx/html/qux.html
+    ports:
+    - "80:80"
+    depends_on:
+      - agent-bar
+      - agent-foo
+      - agent-qux
+      - setup
